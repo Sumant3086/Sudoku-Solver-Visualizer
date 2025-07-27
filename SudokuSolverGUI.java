@@ -3,76 +3,19 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.HashSet;
+import java.util.Random;
 
 public class SudokuSolverGUI extends JFrame {
 
     private static final int SIZE = 9;
     private JTextField[][] cells = new JTextField[SIZE][SIZE];
     private int[][] board = new int[SIZE][SIZE];
-    @SuppressWarnings("unchecked")
     private HashSet<Integer>[] rows = new HashSet[SIZE];
-    @SuppressWarnings("unchecked")
     private HashSet<Integer>[] cols = new HashSet[SIZE];
-    @SuppressWarnings("unchecked")
     private HashSet<Integer>[] subgrids = new HashSet[SIZE];
     private JTextField speedInput;
-
-    public SudokuSolverGUI() {
-        setTitle("Sudoku Solver");
-        setSize(600, 600);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
-
-        JPanel gridPanel = new JPanel();
-        gridPanel.setLayout(new GridLayout(SIZE, SIZE));
-        for (int row = 0; row < SIZE; row++) {
-            rows[row] = new HashSet<>();
-            cols[row] = new HashSet<>();
-            subgrids[row] = new HashSet<>();
-            for (int col = 0; col < SIZE; col++) {
-                cells[row][col] = new JTextField();
-                cells[row][col].setHorizontalAlignment(JTextField.CENTER);
-                cells[row][col].setFont(new Font("Arial", Font.BOLD, 20));
-                gridPanel.add(cells[row][col]);
-            }
-        }
-        add(gridPanel, BorderLayout.CENTER);
-
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new GridLayout(1, 3));
-
-        JButton loadButton = new JButton("Load Puzzle");
-        loadButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                loadPuzzle();
-            }
-        });
-        buttonPanel.add(loadButton);
-
-        JButton solveButton = new JButton("Solve");
-        solveButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        solvePuzzle();
-                    }
-                }).start();
-            }
-        });
-        buttonPanel.add(solveButton);
-
-        speedInput = new JTextField("10"); // default speed value
-        buttonPanel.add(new JLabel("Speed (ms):"));
-        buttonPanel.add(speedInput);
-
-        add(buttonPanel, BorderLayout.SOUTH);
-    }
-
-    private void loadPuzzle() {
-        int[][] puzzle = {
+    private final int[][][] puzzles = {
+        {
             {5, 3, 0, 0, 7, 0, 0, 0, 0},
             {6, 0, 0, 1, 9, 5, 0, 0, 0},
             {0, 9, 8, 0, 0, 0, 0, 6, 0},
@@ -82,105 +25,180 @@ public class SudokuSolverGUI extends JFrame {
             {0, 6, 0, 0, 0, 0, 2, 8, 0},
             {0, 0, 0, 4, 1, 9, 0, 0, 5},
             {0, 0, 0, 0, 8, 0, 0, 7, 9}
-        };
+        },
+        {
+            {0, 0, 0, 6, 0, 0, 4, 0, 0},
+            {7, 0, 0, 0, 0, 3, 6, 0, 0},
+            {0, 0, 0, 0, 9, 1, 0, 8, 0},
+            {0, 0, 0, 0, 0, 0, 0, 0, 0},
+            {0, 5, 0, 1, 8, 0, 0, 0, 3},
+            {0, 0, 0, 3, 0, 6, 0, 4, 5},
+            {0, 4, 0, 2, 0, 0, 0, 6, 0},
+            {9, 0, 3, 0, 0, 0, 0, 0, 0},
+            {0, 2, 0, 0, 0, 0, 1, 0, 0}
+        }
+    };
+
+    public SudokuSolverGUI() {
+        setTitle("Sudoku Solver Visualizer");
+        setSize(700, 700);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        JPanel gridPanel = new JPanel(new GridLayout(SIZE, SIZE));
+        Font cellFont = new Font("Arial", Font.BOLD, 20);
+
+        for (int row = 0; row < SIZE; row++) {
+            rows[row] = new HashSet<>();
+            cols[row] = new HashSet<>();
+            subgrids[row] = new HashSet<>();
+            for (int col = 0; col < SIZE; col++) {
+                JTextField field = new JTextField();
+                field.setHorizontalAlignment(JTextField.CENTER);
+                field.setFont(cellFont);
+                cells[row][col] = field;
+                gridPanel.add(field);
+            }
+        }
+
+        JPanel controlPanel = new JPanel(new FlowLayout());
+
+        JButton loadButton = new JButton("Load Random Puzzle");
+        loadButton.addActionListener(e -> loadRandomPuzzle());
+
+        JButton solveButton = new JButton("Solve");
+        solveButton.addActionListener(e -> new Thread(this::solvePuzzle).start());
+
+        JButton clearButton = new JButton("Clear");
+        clearButton.addActionListener(e -> clearBoard());
+
+        speedInput = new JTextField("50", 5);
+
+        controlPanel.add(loadButton);
+        controlPanel.add(solveButton);
+        controlPanel.add(clearButton);
+        controlPanel.add(new JLabel("Speed (ms):"));
+        controlPanel.add(speedInput);
+
+        add(gridPanel, BorderLayout.CENTER);
+        add(controlPanel, BorderLayout.SOUTH);
+    }
+
+    private void loadRandomPuzzle() {
+        clearBoard(); // Reset before loading
+        int[][] puzzle = puzzles[new Random().nextInt(puzzles.length)];
 
         for (int row = 0; row < SIZE; row++) {
             for (int col = 0; col < SIZE; col++) {
-                board[row][col] = puzzle[row][col];
-                if (puzzle[row][col] != 0) {
-                    cells[row][col].setText(String.valueOf(puzzle[row][col]));
+                int val = puzzle[row][col];
+                board[row][col] = val;
+                if (val != 0) {
+                    cells[row][col].setText(String.valueOf(val));
                     cells[row][col].setEditable(false);
-                    cells[row][col].setBackground(Color.GRAY);
+                    cells[row][col].setBackground(Color.DARK_GRAY);
                     cells[row][col].setForeground(Color.WHITE);
-                    rows[row].add(puzzle[row][col]);
-                    cols[col].add(puzzle[row][col]);
-                    subgrids[(row / 3) * 3 + col / 3].add(puzzle[row][col]);
+                    rows[row].add(val);
+                    cols[col].add(val);
+                    subgrids[(row / 3) * 3 + col / 3].add(val);
                 } else {
                     cells[row][col].setText("");
                     cells[row][col].setEditable(true);
+                    cells[row][col].setBackground(Color.WHITE);
+                    cells[row][col].setForeground(Color.BLACK);
                 }
+            }
+        }
+    }
+
+    private void clearBoard() {
+        for (int i = 0; i < SIZE; i++) {
+            rows[i].clear();
+            cols[i].clear();
+            subgrids[i].clear();
+        }
+
+        for (int row = 0; row < SIZE; row++) {
+            for (int col = 0; col < SIZE; col++) {
+                board[row][col] = 0;
+                cells[row][col].setText("");
+                cells[row][col].setEditable(true);
+                cells[row][col].setBackground(Color.WHITE);
+                cells[row][col].setForeground(Color.BLACK);
             }
         }
     }
 
     private void solvePuzzle() {
         if (solve()) {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    JOptionPane.showMessageDialog(SudokuSolverGUI.this, "Sudoku Solved!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                }
-            });
+            SwingUtilities.invokeLater(() ->
+                JOptionPane.showMessageDialog(this, "Sudoku Solved!", "Success", JOptionPane.INFORMATION_MESSAGE)
+            );
         } else {
-            SwingUtilities.invokeLater(new Runnable() {
-                @Override
-                public void run() {
-                    JOptionPane.showMessageDialog(SudokuSolverGUI.this, "No solution exists for the given Sudoku board.", "Error", JOptionPane.ERROR_MESSAGE);
-                }
-            });
+            SwingUtilities.invokeLater(() ->
+                JOptionPane.showMessageDialog(this, "No solution exists!", "Error", JOptionPane.ERROR_MESSAGE)
+            );
         }
-    }
-
-    private boolean isValid(int row, int col, int num) {
-        if (rows[row].contains(num) || cols[col].contains(num) || subgrids[(row / 3) * 3 + col / 3].contains(num)) {
-            return false;
-        }
-        return true;
     }
 
     private boolean solve() {
         int[] empty = findEmptyCell();
-        if (empty == null) {
-            return true;
-        }
-        int row = empty[0];
-        int col = empty[1];
+        if (empty == null) return true;
+
+        int row = empty[0], col = empty[1];
 
         for (int num = 1; num <= SIZE; num++) {
             if (isValid(row, col, num)) {
-                board[row][col] = num;
-                rows[row].add(num);
-                cols[col].add(num);
-                subgrids[(row / 3) * 3 + col / 3].add(num);
-                updateGUI(row, col, num);
-                delay(getSpeed()); // Use the speed input value
-                if (solve()) {
-                    return true;
-                }
-                board[row][col] = 0;
-                rows[row].remove(num);
-                cols[col].remove(num);
-                subgrids[(row / 3) * 3 + col / 3].remove(num);
-                updateGUI(row, col, 0);
-                delay(getSpeed()); // Use the speed input value
+                placeNumber(row, col, num);
+                delay(getSpeed());
+
+                if (solve()) return true;
+
+                removeNumber(row, col, num);
+                delay(getSpeed());
             }
         }
         return false;
     }
 
+    private void placeNumber(int row, int col, int num) {
+        board[row][col] = num;
+        rows[row].add(num);
+        cols[col].add(num);
+        subgrids[(row / 3) * 3 + col / 3].add(num);
+        updateCell(row, col, num);
+    }
+
+    private void removeNumber(int row, int col, int num) {
+        board[row][col] = 0;
+        rows[row].remove(num);
+        cols[col].remove(num);
+        subgrids[(row / 3) * 3 + col / 3].remove(num);
+        updateCell(row, col, 0);
+    }
+
     private int[] findEmptyCell() {
-        for (int row = 0; row < SIZE; row++) {
-            for (int col = 0; col < SIZE; col++) {
-                if (board[row][col] == 0) {
-                    return new int[]{row, col};
-                }
-            }
-        }
+        for (int r = 0; r < SIZE; r++)
+            for (int c = 0; c < SIZE; c++)
+                if (board[r][c] == 0)
+                    return new int[]{r, c};
         return null;
     }
 
-    private void updateGUI(int row, int col, int num) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                cells[row][col].setText(num == 0 ? "" : String.valueOf(num));
-            }
-        });
+    private boolean isValid(int r, int c, int num) {
+        return !rows[r].contains(num) &&
+               !cols[c].contains(num) &&
+               !subgrids[(r / 3) * 3 + c / 3].contains(num);
     }
 
-    private void delay(int milliseconds) {
+    private void updateCell(int row, int col, int num) {
+        SwingUtilities.invokeLater(() ->
+            cells[row][col].setText(num == 0 ? "" : String.valueOf(num))
+        );
+    }
+
+    private void delay(int ms) {
         try {
-            Thread.sleep(milliseconds);
+            Thread.sleep(ms);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -188,19 +206,17 @@ public class SudokuSolverGUI extends JFrame {
 
     private int getSpeed() {
         try {
-            return Integer.parseInt(speedInput.getText());
+            int speed = Integer.parseInt(speedInput.getText());
+            return Math.max(0, speed); // avoid negative delays
         } catch (NumberFormatException e) {
-            return 50; // Default speed
+            return 50; // fallback default
         }
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                SudokuSolverGUI solver = new SudokuSolverGUI();
-                solver.setVisible(true);
-            }
+        SwingUtilities.invokeLater(() -> {
+            SudokuSolverGUI gui = new SudokuSolverGUI();
+            gui.setVisible(true);
         });
     }
 }
